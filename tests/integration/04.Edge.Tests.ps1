@@ -42,6 +42,11 @@ Describe "Edge" {
         $script:LocalAS = "1234"
         $script:bgpneighbour = "1.1.1.254"
         $script:RemoteAS = "2345"
+        $script:bgpWeight = "10"
+        $script:bgpWeight = "10"
+        $script:bgpHoldDownTimer = "3"
+        $script:bgpKeepAliveTimer = "1"
+        $script:bgpPassword = "VMware1!"
         $script:PrefixName = "pester_e_prefix1"
         $script:ospfPrefixName = "pester_e_ospfprefix1"
         $script:bgpPrefixName = "pester_e_bgpprefix1"
@@ -312,9 +317,14 @@ Describe "Edge" {
         it "Can add a BGP Neighbour" {
             $rtg = Get-NsxEdge $name | Get-NsxEdgeRouting
             $rtg | should not be $null
-            $rtg | New-NsxEdgeBgpNeighbour -IpAddress $bgpneighbour -RemoteAS $RemoteAs -confirm:$false
+            $rtg | New-NsxEdgeBgpNeighbour -IpAddress $bgpneighbour -RemoteAS $RemoteAs -Weight $bgpWeight -KeepAliveTimer $bgpKeepAliveTimer -HoldDownTimer $bgpHoldDownTimer -Password $bgpPassword -confirm:$false
             $nbr = Get-NsxEdge $name  | Get-NsxEdgeRouting | Get-NsxEdgeBgpNeighbour
             $nbr.ipaddress | should be $bgpneighbour
+            $nbr.remoteAS | should be $RemoteAs
+            $nbr.weight | should be $bgpWeight
+            $nbr.keepAliveTimer | should be $bgpKeepAliveTimer
+            $nbr.holdDownTimer | should be $bgpHoldDownTimer
+            ($nbr | Get-Member -MemberType Properties -Name password).count | should be 1
         }
 
         it "Can enable route redistribution into BGP" {
@@ -650,9 +660,22 @@ Describe "Edge" {
         }
     }
 
-    it "Can remove an edge" {
-        Get-NsxEdge $name | should not be $null
-        Get-NsxEdge $name | remove-nsxEdge -confirm:$false
-        get-nsxEdge $name | should be $null
+    Context "Misc" { 
+
+        it "Can enable firewall via Set-NsxEdge" {
+            $edge = Get-NsxEdge $name
+            $edge | should not be $null
+            $edge.features.firewall.enabled | should be "false"
+            $edge.features.firewall.enabled = "true"
+            $edge | Set-NsxEdge -confirm:$false
+            $edge = Get-NsxEdge $name
+            $edge.features.firewall.enabled | should be "true"
+        }
+
+        it "Can remove an edge" {
+            Get-NsxEdge $name | should not be $null
+            Get-NsxEdge $name | remove-nsxEdge -confirm:$false
+            get-nsxEdge $name | should be $null
+        }
     }
 }
